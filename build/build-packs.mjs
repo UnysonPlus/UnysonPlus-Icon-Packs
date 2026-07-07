@@ -61,6 +61,54 @@ const PACKS = [
 		dir: path.join( NM, '@phosphor-icons/core/assets/regular' ),
 		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 256 256" fill="currentColor" class="ph">',
 	},
+	{
+		slug: 'remix',
+		title: 'Remix Icon',
+		dir: path.join( NM, 'remixicon/icons' ),   // nested by category
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="remixicon">',
+	},
+	{
+		slug: 'mdi',
+		title: 'Material Design Icons',
+		dir: path.join( NM, '@mdi/svg/svg' ),
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="mdi">',
+	},
+	{
+		slug: 'ionicons',
+		title: 'Ionicons',
+		dir: path.join( NM, 'ionicons/dist/svg' ),
+		// Mixed outline/solid: each icon carries its own fill/stroke (currentColor),
+		// which the strip preserves; svg_open only supplies a default fill.
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512 512" fill="currentColor" class="ionicon">',
+	},
+	{
+		slug: 'iconoir',
+		title: 'Iconoir',
+		dir: path.join( NM, 'iconoir/icons' ),      // nested (regular/solid); first-wins dedupe
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="iconoir">',
+	},
+	{
+		slug: 'boxicons',
+		title: 'Boxicons',
+		dir: path.join( NM, 'boxicons/svg' ),        // nested (regular/solid/logos); distinct bx-/bxs-/bxl- prefixes
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="bx">',
+	},
+	{
+		slug: 'octicons',
+		title: 'Octicons',
+		dir: path.join( NM, '@primer/octicons/build/svg' ),
+		// Octicons ship per-size files (name-16 / name-24) with matching viewBoxes;
+		// take the 16px set only so the viewBox is uniform, and drop the -16 suffix.
+		only: /-16\.svg$/,
+		nameTransform: ( n ) => n.replace( /-16$/, '' ),
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 16 16" fill="currentColor" class="octicon">',
+	},
+	{
+		slug: 'simple-icons',
+		title: 'Simple Icons (Brands)',
+		dir: path.join( NM, 'simple-icons/icons' ),
+		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="simpleicon">',
+	},
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -72,12 +120,15 @@ function innerFromSvg( svg ) {
 	const m = svg.match( /<svg[^>]*>([\s\S]*?)<\/svg>/i );
 	let inner = m ? m[ 1 ] : svg;
 
-	// Drop hardcoded colours so the icon inherits currentColor from svg_open.
-	// (Keep fill="none" — it's structural, not a colour.)
 	inner = inner
-		.replace( /\s(fill|stroke)="(?!none")(#[0-9a-fA-F]{3,8}|rgb[^"]*|currentColor|[a-zA-Z]+)"/g, '' )
-		// Phosphor ships a transparent framing <rect …/> in some icons — harmless, keep.
-		.replace( /\s(aria-hidden|data-slot|focusable|role)="[^"]*"/g, '' )
+		// Metadata / identifying noise that some sets embed per icon.
+		.replace( /<title>[\s\S]*?<\/title>/gi, '' )
+		.replace( /<desc>[\s\S]*?<\/desc>/gi, '' )
+		.replace( /\s(id|class|aria-hidden|aria-label|data-[a-z-]+|focusable|role)="[^"]*"/gi, '' )
+		// Drop ONLY hardcoded colours (hex / rgb). currentColor, none, inherit and
+		// transparent are intentional and must survive — several sets (Ionicons,
+		// Iconoir) carry per-path currentColor for their outline strokes.
+		.replace( /\s(fill|stroke)="(#[0-9a-fA-F]{3,8}|rgba?\([^"]*\))"/gi, '' )
 		// Collapse whitespace between/inside tags to single spaces.
 		.replace( /\s*[\r\n]+\s*/g, ' ' )
 		.replace( /\s{2,}/g, ' ' )
@@ -85,6 +136,17 @@ function innerFromSvg( svg ) {
 		.trim();
 
 	return inner;
+}
+
+/** Recursively collect every .svg under a directory. */
+function walkSvgs( dir ) {
+	const out = [];
+	for ( const entry of fs.readdirSync( dir, { withFileTypes: true } ) ) {
+		const full = path.join( dir, entry.name );
+		if ( entry.isDirectory() ) { out.push( ...walkSvgs( full ) ); }
+		else if ( entry.name.endsWith( '.svg' ) ) { out.push( full ); }
+	}
+	return out;
 }
 
 /** Search keywords for an icon name: the name plus its hyphen tokens, deduped. */
@@ -109,14 +171,20 @@ for ( const pack of PACKS ) {
 		continue;
 	}
 
-	const files = fs.readdirSync( pack.dir ).filter( ( f ) => f.endsWith( '.svg' ) ).sort();
-	const icons = {};
+	let files = walkSvgs( pack.dir );
+	if ( pack.only ) { files = files.filter( ( f ) => pack.only.test( path.basename( f ) ) ); }
+	files.sort();
+
+	const icons  = {};
 	const search = {};
+	let dupes    = 0;
 
 	for ( const file of files ) {
-		const name  = file.replace( /\.svg$/, '' );
-		const svg   = fs.readFileSync( path.join( pack.dir, file ), 'utf8' );
-		const inner = innerFromSvg( svg );
+		let name = path.basename( file ).replace( /\.svg$/, '' );
+		if ( pack.nameTransform ) { name = pack.nameTransform( name ); }
+		if ( icons[ name ] !== undefined ) { dupes++; continue; } // first-wins across sub-dirs
+
+		const inner = innerFromSvg( fs.readFileSync( file, 'utf8' ) );
 		if ( ! inner ) { continue; }
 		icons[ name ]  = inner;
 		search[ name ] = keywordsFor( name );
@@ -135,7 +203,7 @@ for ( const pack of PACKS ) {
 		count,
 	};
 
-	console.log( `OK   ${pack.slug.padEnd( 20 )} ${count} icons` );
+	console.log( `OK   ${pack.slug.padEnd( 20 )} ${count} icons${dupes ? ` (${dupes} dupes skipped)` : ''}` );
 }
 
 fs.writeFileSync( path.join( ROOT, 'catalog.json' ), JSON.stringify( catalog, null, 2 ) );

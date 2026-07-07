@@ -1,8 +1,15 @@
 {
   "dependencies": {
+    "@mdi/svg": "^7.4.47",
     "@phosphor-icons/core": "^2.1.1",
+    "@primer/octicons": "^19.29.1",
     "bootstrap-icons": "^1.13.1",
+    "boxicons": "^2.1.4",
     "feather-icons": "^4.29.2",
-    "heroicons": "^2.2.0"
+    "heroicons": "^2.2.0",
+    "iconoir": "^7.11.1",
+    "ionicons": "^8.0.13",
+    "remixicon": "^4.9.1",
+    "simple-icons": "^16.25.0"
   }
 }
