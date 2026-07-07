@@ -1,0 +1,5 @@
+# Build tooling deps (icon sources are pulled fresh via npm install)
+build/node_modules/
+build/package-lock.json
+npm-debug.log*
+.DS_Store
