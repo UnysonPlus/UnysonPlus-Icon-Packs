@@ -149,6 +149,60 @@ function walkSvgs( dir ) {
 	return out;
 }
 
+// Concepts to sample for the card preview strip, in priority order. Icon packs
+// match the early (generic) names; brand sets (Simple Icons) fall through to the
+// popular brand names near the end.
+const SAMPLE_CONCEPTS = [
+	'home', 'house', 'heart', 'star', 'user', 'account', 'person', 'settings',
+	'cog', 'gear', 'search', 'magnify', 'bell', 'camera', 'calendar', 'mail',
+	'envelope', 'image', 'play', 'music', 'check', 'download', 'trash', 'bookmark',
+	'github', 'youtube', 'google', 'figma', 'spotify', 'instagram', 'apple', 'x',
+];
+
+/** Pick up to n representative icon names from a pack (concepts first, then pad). */
+function pickSamples( icons, n = 5 ) {
+	const names = Object.keys( icons );
+	const set   = new Set( names );
+	const out   = [];
+
+	for ( const concept of SAMPLE_CONCEPTS ) {
+		if ( out.length >= n ) { break; }
+		let hit;
+		if ( set.has( concept ) ) {
+			hit = concept; // exact name wins (feather "home", simple-icons "github")
+		} else {
+			// Whole-token match, shortest name preferred — so "bx-home" matches the
+			// "home" concept but "homeadvisor" (a single token) never does.
+			const cands = names.filter( ( nm ) => ! out.includes( nm ) && nm.split( /[-_]/ ).includes( concept ) );
+			hit = cands.sort( ( a, b ) => a.length - b.length )[ 0 ];
+		}
+		if ( hit && ! out.includes( hit ) ) { out.push( hit ); }
+	}
+	// Pad with the first alphabetical names if concepts didn't fill the row.
+	for ( const nm of names.slice().sort() ) {
+		if ( out.length >= n ) { break; }
+		if ( ! out.includes( nm ) ) { out.push( nm ); }
+	}
+	return out;
+}
+
+/** A tiny row-of-samples SVG for a pack card, each glyph in the pack's own style. */
+function previewSvg( pack, icons, names ) {
+	const size = 22, gap = 9;
+	const w = names.length * size + ( names.length - 1 ) * gap;
+
+	const cells = names.map( ( nm, i ) => {
+		const open = pack.svg_open
+			.replace( /\sclass="[^"]*"/, '' )
+			.replace( /\swidth="[^"]*"/, '' )
+			.replace( /\sheight="[^"]*"/, '' )
+			.replace( /^<svg/, `<svg x="${ i * ( size + gap ) }" y="0" width="${ size }" height="${ size }"` );
+		return open + icons[ nm ] + '</svg>';
+	} ).join( '' );
+
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${ w } ${ size }" width="${ w }" height="${ size }">${ cells }</svg>`;
+}
+
 /** Search keywords for an icon name: the name plus its hyphen tokens, deduped. */
 function keywordsFor( name ) {
 	const tokens = name.split( /[-_]/ ).filter( Boolean );
@@ -196,14 +250,17 @@ for ( const pack of PACKS ) {
 	fs.writeFileSync( path.join( dest, `${pack.slug}-icons.json` ),  JSON.stringify( icons ) );
 	fs.writeFileSync( path.join( dest, `${pack.slug}-search.json` ), JSON.stringify( search ) );
 
+	const samples = pickSamples( icons, 5 );
+
 	catalog.packs[ pack.slug ] = {
 		title: pack.title,
 		slug: pack.slug,
 		svg_open: pack.svg_open,
 		count,
+		preview: previewSvg( pack, icons, samples ),
 	};
 
-	console.log( `OK   ${pack.slug.padEnd( 20 )} ${count} icons${dupes ? ` (${dupes} dupes skipped)` : ''}` );
+	console.log( `OK   ${pack.slug.padEnd( 20 )} ${count} icons${dupes ? ` (${dupes} dupes skipped)` : ''} | preview: ${samples.join( ', ' )}` );
 }
 
 fs.writeFileSync( path.join( ROOT, 'catalog.json' ), JSON.stringify( catalog, null, 2 ) );
