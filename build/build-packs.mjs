@@ -109,6 +109,31 @@ const PACKS = [
 		dir: path.join( NM, 'simple-icons/icons' ),
 		svg_open: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="simpleicon">',
 	},
+
+	// ---- Tier 1 additions (svg_open auto-derived from each set's own root tag) ----
+	{ slug: 'material-symbols', title: 'Material Symbols',           dir: path.join( NM, '@material-symbols/svg-400/outlined' ) },
+	{ slug: 'material-outlined', title: 'Material Icons (Outlined)', dir: path.join( NM, '@material-design-icons/svg/outlined' ) },
+	{ slug: 'material-filled',   title: 'Material Icons (Filled)',   dir: path.join( NM, '@material-design-icons/svg/filled' ) },
+	{ slug: 'carbon',            title: 'Carbon',                    dir: path.join( NM, '@carbon/icons/svg/32' ) },
+	{ slug: 'eva-fill',          title: 'Eva Icons (Fill)',          dir: path.join( NM, 'eva-icons/fill/svg' ) },
+	{ slug: 'eva-outline',       title: 'Eva Icons (Outline)',       dir: path.join( NM, 'eva-icons/outline/svg' ), nameTransform: ( n ) => n.replace( /-outline$/, '' ) },
+	{ slug: 'majesticons-line',  title: 'Majesticons (Line)',        dir: path.join( NM, 'majesticons/line' ),  nameTransform: ( n ) => n.replace( /-line$/, '' ) },
+	{ slug: 'majesticons-solid', title: 'Majesticons (Solid)',       dir: path.join( NM, 'majesticons/solid' ) },
+	{ slug: 'teenyicons-outline',title: 'Teenyicons (Outline)',      dir: path.join( NM, 'teenyicons/outline' ), nameTransform: ( n ) => n.replace( /-outline$/, '' ) },
+	{ slug: 'teenyicons-solid',  title: 'Teenyicons (Solid)',        dir: path.join( NM, 'teenyicons/solid' ),   nameTransform: ( n ) => n.replace( /-solid$/, '' ) },
+	{ slug: 'pixelarticons',     title: 'Pixelart Icons',            dir: path.join( NM, 'pixelarticons/svg' ) },
+	{ slug: 'humbleicons',       title: 'Humbleicons',               dir: path.join( NM, 'humbleicons/icons' ) },
+	{ slug: 'jam',               title: 'Jam Icons',                 dir: path.join( NM, 'jam-icons/svg' ) },
+	{ slug: 'mynaui-outline',    title: 'MynaUI (Outline)',          dir: path.join( NM, '@mynaui/icons/icons' ) },
+	{ slug: 'mynaui-solid',      title: 'MynaUI (Solid)',            dir: path.join( NM, '@mynaui/icons/icons-solid' ), nameTransform: ( n ) => n.replace( /-solid$/, '' ) },
+	{ slug: 'antdesign-outlined',title: 'Ant Design (Outlined)',     dir: path.join( NM, '@ant-design/icons-svg/inline-svg/outlined' ) },
+	{ slug: 'antdesign-filled',  title: 'Ant Design (Filled)',       dir: path.join( NM, '@ant-design/icons-svg/inline-svg/filled' ) },
+	{ slug: 'element-plus',      title: 'Element Plus',              dir: path.join( NM, '@element-plus/icons-svg' ) },
+	{ slug: 'codicons',          title: 'VS Code Codicons',          dir: path.join( NM, '@vscode/codicons/src/icons' ) },
+	{ slug: 'zondicons',         title: 'Zondicons',                 dir: path.join( NM, 'zondicons' ), only: /\.svg$/ },
+	{ slug: 'bytesize',          title: 'Bytesize Icons',            dir: path.join( NM, 'bytesize-icons/dist/icons' ) },
+	{ slug: 'open-iconic',       title: 'Open Iconic',               dir: path.join( NM, 'open-iconic/svg' ) },
+	{ slug: 'simple-line',       title: 'Simple Line Icons',         dir: path.join( NM, 'simple-line-icons/src/svgs' ) },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -124,6 +149,10 @@ function innerFromSvg( svg ) {
 		// Metadata / identifying noise that some sets embed per icon.
 		.replace( /<title>[\s\S]*?<\/title>/gi, '' )
 		.replace( /<desc>[\s\S]*?<\/desc>/gi, '' )
+		// Invisible spacer/bounding elements (Eva ships a transparent <rect opacity="0"/>
+		// per icon — if the opacity is later stripped by a sanitiser it becomes an
+		// opaque block covering the glyph, so drop these outright).
+		.replace( /<[a-z]+\b[^>]*\sopacity="0"[^>]*\/>/gi, '' )
 		.replace( /\s(id|class|aria-hidden|aria-label|data-[a-z-]+|focusable|role)="[^"]*"/gi, '' )
 		// Drop ONLY hardcoded colours (hex / rgb). currentColor, none, inherit and
 		// transparent are intentional and must survive — several sets (Ionicons,
@@ -136,6 +165,36 @@ function innerFromSvg( svg ) {
 		.trim();
 
 	return inner;
+}
+
+/**
+ * Derive a pack's shared `svg_open` from a sample icon's root <svg> tag: keep its
+ * viewBox and fill/stroke setup, force hardcoded colours to currentColor, strip
+ * identifying/sizing noise, and default to fill=currentColor when the root declares
+ * no paint (so fill packs inherit the theme colour). Used for every pack that
+ * doesn't hand-specify svg_open.
+ */
+function deriveSvgOpen( sampleText, usesStroke ) {
+	const m = sampleText.match( /<svg[^>]*>/i );
+	let open = m ? m[ 0 ] : '<svg viewBox="0 0 24 24">';
+
+	open = open
+		.replace( /\s(class|id|version|style|role|focusable|preserveAspectRatio|enable-background|xmlns:xlink|width|height|aria-[a-z-]+|data-[a-z-]+)="[^"]*"/gi, '' )
+		.replace( /\s(fill|stroke)="(#[0-9a-fA-F]{3,8}|rgba?\([^"]*\))"/gi, ( x, a ) => ` ${ a }="currentColor"` );
+
+	if ( ! /\sxmlns=/i.test( open ) ) { open = open.replace( /^<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"' ); }
+
+	if ( ! usesStroke ) {
+		// Fill pack: force fill=currentColor. Some sets (e.g. Teenyicons) reset the
+		// root to fill="none" and expect the consumer to paint — with filled paths
+		// and no stroke, keeping "none" would render them invisible.
+		open = open.replace( /\sfill="[^"]*"/i, '' ).replace( /^<svg/i, '<svg fill="currentColor"' );
+	} else if ( ! /\sfill="/i.test( open ) && ! /\sstroke="/i.test( open ) ) {
+		open = open.replace( /^<svg/i, '<svg fill="currentColor"' );
+	}
+
+	open = open.replace( /^<svg/i, '<svg width="24" height="24"' );
+	return open;
 }
 
 /** Recursively collect every .svg under a directory. */
@@ -187,12 +246,12 @@ function pickSamples( icons, n = 5 ) {
 }
 
 /** A tiny row-of-samples SVG for a pack card, each glyph in the pack's own style. */
-function previewSvg( pack, icons, names ) {
+function previewSvg( svgOpen, icons, names ) {
 	const size = 22, gap = 9;
 	const w = names.length * size + ( names.length - 1 ) * gap;
 
 	const cells = names.map( ( nm, i ) => {
-		const open = pack.svg_open
+		const open = svgOpen
 			.replace( /\sclass="[^"]*"/, '' )
 			.replace( /\swidth="[^"]*"/, '' )
 			.replace( /\sheight="[^"]*"/, '' )
@@ -244,8 +303,10 @@ for ( const pack of PACKS ) {
 		search[ name ] = keywordsFor( name );
 	}
 
-	const count = Object.keys( icons ).length;
-	const dest  = path.join( OUT, pack.slug );
+	const count      = Object.keys( icons ).length;
+	const usesStroke = Object.values( icons ).some( ( v ) => /\sstroke=/i.test( v ) );
+	const svg_open   = pack.svg_open || deriveSvgOpen( fs.readFileSync( files[ 0 ], 'utf8' ), usesStroke );
+	const dest       = path.join( OUT, pack.slug );
 	ensureDir( dest );
 	fs.writeFileSync( path.join( dest, `${pack.slug}-icons.json` ),  JSON.stringify( icons ) );
 	fs.writeFileSync( path.join( dest, `${pack.slug}-search.json` ), JSON.stringify( search ) );
@@ -255,9 +316,9 @@ for ( const pack of PACKS ) {
 	catalog.packs[ pack.slug ] = {
 		title: pack.title,
 		slug: pack.slug,
-		svg_open: pack.svg_open,
+		svg_open,
 		count,
-		preview: previewSvg( pack, icons, samples ),
+		preview: previewSvg( svg_open, icons, samples ),
 	};
 
 	console.log( `OK   ${pack.slug.padEnd( 20 )} ${count} icons${dupes ? ` (${dupes} dupes skipped)` : ''} | preview: ${samples.join( ', ' )}` );

@@ -34,8 +34,32 @@ pulls `packs/<slug>/<slug>-icons.json` + `-search.json`. Every `svg_open` uses
 | boxicons | Boxicons | 1,634 | MIT / CC-BY-4.0 |
 | octicons | Octicons | 379 | MIT |
 | simple-icons | Simple Icons (Brands) | 3,447 | CC0-1.0 |
+| material-symbols | Material Symbols | 7,784 | Apache-2.0 |
+| material-outlined | Material Icons (Outlined) | 2,122 | Apache-2.0 |
+| material-filled | Material Icons (Filled) | 2,122 | Apache-2.0 |
+| carbon | Carbon | 2,706 | Apache-2.0 |
+| eva-fill | Eva Icons (Fill) | 246 | MIT |
+| eva-outline | Eva Icons (Outline) | 244 | MIT |
+| majesticons-line | Majesticons (Line) | 380 | MIT |
+| majesticons-solid | Majesticons (Solid) | 380 | MIT |
+| teenyicons-outline | Teenyicons (Outline) | 600 | MIT |
+| teenyicons-solid | Teenyicons (Solid) | 600 | MIT |
+| pixelarticons | Pixelart Icons | 877 | MIT |
+| humbleicons | Humbleicons | 268 | MIT |
+| jam | Jam Icons | 896 | MIT |
+| mynaui-outline | MynaUI (Outline) | 1,290 | MIT |
+| mynaui-solid | MynaUI (Solid) | 1,290 | MIT |
+| antdesign-outlined | Ant Design (Outlined) | 447 | MIT |
+| antdesign-filled | Ant Design (Filled) | 249 | MIT |
+| element-plus | Element Plus | 293 | MIT |
+| codicons | VS Code Codicons | 542 | CC-BY-4.0 |
+| zondicons | Zondicons | 297 | CC-BY-4.0 |
+| bytesize | Bytesize Icons | 101 | MIT |
+| open-iconic | Open Iconic | 223 | MIT / OFL-1.1 |
+| simple-line | Simple Line Icons | 189 | MIT |
 
-~23,000 icons across 12 packs. Each set retains its upstream license (above).
+~47,500 icons across 35 packs. Each set retains its upstream license (above).
+CC-BY sets (Codicons, Zondicons) need a single site-wide credit; all others are attribution-free.
 
 ## Regenerate
 
