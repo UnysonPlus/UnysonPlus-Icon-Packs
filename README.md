@@ -1,5 +1,18 @@
 # UnysonPlus Icon Packs
 
+> ## ⚠️ MOVED / DEPRECATED
+> This content now lives in the consolidated content repo
+> **[UnysonPlus-Library](https://github.com/UnysonPlus/UnysonPlus-Library)**, under
+> **`icon-packs/`** (alongside `templates/` and `presets/`). From plugin **v2.15.65**
+> the icon picker fetches from
+> `https://raw.githubusercontent.com/UnysonPlus/UnysonPlus-Library/master/icon-packs/catalog.json`.
+>
+> This repo is kept read-only for reference. **Do not add packs here** — add them to
+> `UnysonPlus-Library/icon-packs/`. (Older plugin builds that still point here keep
+> working as long as this repo exists.)
+
+---
+
 The on-demand SVG icon-pack catalog for the **UnysonPlus** plugin's icon picker
 (icon-v3). The plugin bundles only Lucide + Tabler and downloads any other pack
 from here on demand into `wp-content/uploads/unysonplus-icon-packs/`, so a site
